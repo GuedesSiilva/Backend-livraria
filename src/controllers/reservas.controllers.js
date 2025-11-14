@@ -42,12 +42,15 @@ export const criarReserva = async (req, res) => {
     }
 
     const data_retirada = new Date();
-    const sql = `
-      INSERT INTO reservas (usuario_id, livro_id, data_retirada, data_devolucao)
-      VALUES (?, ?, ?, ?)
-    `;
-    
-    await db.query(sql, [usuario_id, livro_id, data_retirada, data_devolucao]);
+
+    await db.query(
+      `INSERT INTO reservas (usuario_id, livro_id, data_retirada, data_devolucao)
+       VALUES (?, ?, ?, ?);`
+      , [usuario_id, livro_id, data_retirada, data_devolucao]);
+
+    await db.query(
+      `UPDATE livros SET ativo = false WHERE id = ?;`
+      , [livro_id]);
 
     res.status(201).json({ message: "Reserva efetuada com sucesso!" });
   } catch (error) {
@@ -55,7 +58,6 @@ export const criarReserva = async (req, res) => {
     res.status(500).json({ message: "Erro ao criar reserva" });
   }
 };
-
 
 // ============================
 // EXCLUIR RESERVA
