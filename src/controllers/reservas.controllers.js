@@ -65,10 +65,26 @@ export const criarReserva = async (req, res) => {
     const data_retirada = new Date();
     const dataDev = new Date(data_devolucao);
 
+    // Verificação de data
     if (dataDev <= data_retirada) {
       return res
         .status(400)
         .json({ message: "A data de devolução deve ser posterior à data de retirada." });
+    }
+
+    const [livroRows] = await db.query(
+      `SELECT ativo FROM livros WHERE id = ?`,
+      [livro_id]
+    );
+
+    if (livroRows.length === 0) {
+      return res.status(404).json({ message: "Livro não encontrado." });
+    }
+
+    if (livroRows[0].ativo === 0) {
+      return res.status(400).json({
+        message: "Este livro já está reservado ou indisponível no momento."
+      });
     }
 
     await db.query(
@@ -78,7 +94,7 @@ export const criarReserva = async (req, res) => {
     );
 
     await db.query(
-      `UPDATE livros SET ativo = false WHERE id = ?`,
+      `UPDATE livros SET ativo = 0 WHERE id = ?`,
       [livro_id]
     );
 
@@ -89,6 +105,7 @@ export const criarReserva = async (req, res) => {
     return res.status(500).json({ message: "Erro ao criar reserva" });
   }
 };
+
 
 
 
