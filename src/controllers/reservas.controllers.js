@@ -3,26 +3,47 @@ import { db } from "../config/db.js";
 // ============================
 // LISTAR RESERVAS
 // ============================
+
 export const listarReservas = async (req, res) => {
   try {
     const sql = `
-    SELECT 
-    u.id AS id_usuario,
-    u.nome AS nome_usuario,
-    l.id AS id_livro,
-    l.titulo AS titulo_livro,
-    l.autor AS autor_livro
-    FROM reservas r
-    JOIN usuarios u ON r.usuario_id = u.id
-    JOIN livros l ON r.livro_id = l.id
-    ORDER BY r.data_retirada DESC;
+      SELECT 
+        u.id AS id_usuario,
+        u.nome AS nome_usuario,
+        l.id AS id_livro,
+        l.titulo AS titulo_livro,
+        l.autor AS autor_livro,
+        r.data_retirada,
+        r.data_devolucao
+      FROM reservas r
+      JOIN usuarios u ON r.usuario_id = u.id
+      JOIN livros l ON r.livro_id = l.id
+      ORDER BY r.data_retirada DESC;
     `;
 
     const [rows] = await db.query(sql);
-    res.status(200).json(rows);
+
+
+    function formatarDataBR(date) {
+      const d = new Date(date);
+      const dia = String(d.getDate()).padStart(2, "0");
+      const mes = String(d.getMonth() + 1).padStart(2, "0");
+      const ano = d.getFullYear();
+      return `${dia}/${mes}/${ano}`;
+    }
+
+
+    const reservasFormatadas = rows.map(r => ({
+      ...r,
+      data_retirada: formatarDataBR(r.data_retirada),
+      data_devolucao: formatarDataBR(r.data_devolucao),
+    }));
+
+    return res.status(200).json(reservasFormatadas);
+
   } catch (error) {
     console.error("Erro ao listar reservas:", error);
-    res.status(500).json({ message: "Erro ao buscar as reservas" });
+    return res.status(500).json({ message: "Erro ao buscar as reservas" });
   }
 };
 
@@ -32,7 +53,7 @@ export const listarReservas = async (req, res) => {
 
 export const criarReserva = async (req, res) => {
   try {
-    const { usuario_id, livro_id, data_devolucao} = req.body;
+    const { usuario_id, livro_id, data_devolucao } = req.body;
 
     // validação simples
     if (!usuario_id || !livro_id || !data_devolucao) {
@@ -42,32 +63,44 @@ export const criarReserva = async (req, res) => {
     }
 
     const data_retirada = new Date();
+    const dataDev = new Date(data_devolucao);
+
+    if (dataDev <= data_retirada) {
+      return res
+        .status(400)
+        .json({ message: "A data de devolução deve ser posterior à data de retirada." });
+    }
 
     await db.query(
       `INSERT INTO reservas (usuario_id, livro_id, data_retirada, data_devolucao)
-       VALUES (?, ?, ?, ?);`
-      , [usuario_id, livro_id, data_retirada, data_devolucao]);
+       VALUES (?, ?, ?, ?)`,
+      [usuario_id, livro_id, data_retirada, data_devolucao]
+    );
 
     await db.query(
-      `UPDATE livros SET ativo = false WHERE id = ?;`
-      , [livro_id]);
+      `UPDATE livros SET ativo = false WHERE id = ?`,
+      [livro_id]
+    );
 
-    res.status(201).json({ message: "Reserva efetuada com sucesso!" });
+    return res.status(201).json({ message: "Reserva efetuada com sucesso!" });
+
   } catch (error) {
     console.error("Erro ao criar reserva:", error);
-    res.status(500).json({ message: "Erro ao criar reserva" });
+    return res.status(500).json({ message: "Erro ao criar reserva" });
   }
 };
+
+
 
 // ============================
 // EXCLUIR RESERVA
 // ============================
 
 export async function DeletarReservas(req, res) {
-    try {
-        await db.execute("DELETE FROM reservas WHERE id = ?", [req.params.id]);
-        res.json({ mensagem: "Reserva deletada com sucesso!" });
-    } catch (err) {
-        res.status(500).json({ erro: err.message });
-    }
+  try {
+    await db.execute("DELETE FROM reservas WHERE id = ?", [req.params.id]);
+    res.json({ mensagem: "Reserva deletada com sucesso!" });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
 };
