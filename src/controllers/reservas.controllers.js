@@ -115,9 +115,30 @@ export const criarReserva = async (req, res) => {
 
 export async function DeletarReservas(req, res) {
   try {
-    await db.execute("DELETE FROM reservas WHERE id = ?", [req.params.id]);
-    res.json({ mensagem: "Reserva deletada com sucesso!" });
+    const reservaId = req.params.id;
+
+    const [rows] = await db.query(
+      "SELECT livro_id FROM reservas WHERE id = ?",
+      [reservaId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ mensagem: "Reserva não encontrada." });
+    }
+
+    const livro_id = rows[0].livro_id;
+
+    await db.execute("DELETE FROM reservas WHERE id = ?", [reservaId]);
+
+    await db.query(
+      `UPDATE livros SET ativo = 1 WHERE id = ?`,
+      [livro_id]
+    );
+
+    return res.json({ mensagem: "Reserva deletada e livro reativado com sucesso!" });
+
   } catch (err) {
-    res.status(500).json({ erro: err.message });
+    console.error(err);
+    return res.status(500).json({ erro: err.message });
   }
 };
