@@ -8,7 +8,6 @@ router.get("/", listarAvaliacoes);
 
 router.get("/media", ListarAvaliacoesDeLivros);
 
-
 router.post("/", criarAvaliacao);
 
 
